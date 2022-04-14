@@ -3,7 +3,9 @@
   <component name="DesignSurface">
     <option name="filePathToZoomLevelMap">
       <map>
+        <entry key="..\:/Anroid dev projects/IIP/app/src/main/res/layout/activity_ingredients.xml" value="0.16" />
         <entry key="..\:/Anroid dev projects/IIP/app/src/main/res/layout/activity_main.xml" value="0.15579710144927536" />
+        <entry key="..\:/Anroid dev projects/IIP/app/src/main/res/layout/activity_text_recogonition_from_gallery.xml" value="0.10054347826086957" />
       </map>
     </option>
   </component>

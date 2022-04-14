@@ -5,14 +5,11 @@ import android.os.Bundle
 import android.Manifest
 import android.content.pm.PackageManager
 import android.util.Log
-import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import java.util.concurrent.Executors
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
-
-import androidx.core.content.PermissionChecker
 
 import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
@@ -21,9 +18,11 @@ import java.util.concurrent.ExecutorService
 import android.provider.MediaStore
 
 import android.content.ContentValues
+import android.content.Intent
 import android.media.Image
 import android.os.Build
 import android.provider.Telephony
+import androidx.camera.core.ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST
 import com.example.albud.databinding.ActivityMainBinding
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
@@ -33,44 +32,21 @@ import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognizerOptionsInterface
 import java.io.IOException
 import java.lang.IllegalStateException
+import kotlin.collections.ArrayList
+
 
 
 class MainActivity : AppCompatActivity() {
     private lateinit var viewBinding: ActivityMainBinding
 
-    private var imageCapture: ImageCapture? = null
+    public val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
+    private var imageCapture: ImageCapture? = null
+    private lateinit var imageAnalyzer: ImageAnalysis
 
 
 
     private lateinit var cameraExecutor: ExecutorService
-
-    //function to stop camera
-
-
-
-    //MLKIT recogonizer
-
-
-
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<String>, grantResults:
-        IntArray) {
-
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_CODE_PERMISSIONS) {
-            if (allPermissionsGranted()) {
-                startCamera()
-
-            } else {
-                Toast.makeText(this,
-                    "Permissions not granted by the user.",
-                    Toast.LENGTH_SHORT).show()
-                finish()
-            }
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,11 +68,7 @@ class MainActivity : AppCompatActivity() {
         cameraExecutor = Executors.newSingleThreadExecutor()
     }
 
-
-
     private fun takePhoto() {
-
-        // Get a stable reference of the modifiable image capture use case
         val imageCapture = imageCapture ?: return
 
         // Create time stamped name and MediaStore entry.
@@ -119,7 +91,29 @@ class MainActivity : AppCompatActivity() {
 
         // Set up image capture listener, which is triggered after photo has
         // been taken
-        imageCapture.takePicture(
+
+        imageCapture.takePicture(ContextCompat.getMainExecutor(this),object :
+            ImageCapture.OnImageCapturedCallback()
+        {
+            override fun onCaptureSuccess(image: ImageProxy) {
+                super.onCaptureSuccess(image)
+                 imageAnalyzer = ImageAnalysis.Builder().setImageQueueDepth(STRATEGY_KEEP_ONLY_LATEST)
+                    .setTargetAspectRatio(AspectRatio.RATIO_16_9)
+                    .build()
+                    .also {
+                        fun onTextFound(s: String) {
+                            Log.d(TAG, "We got new text: $s")
+                        }
+                        it.setAnalyzer(cameraExecutor,TextReaderAnalyzer(::onTextFound))
+                    }
+            }
+
+            override fun onError(exception: ImageCaptureException) {
+                super.onError(exception)
+                Log.e(TAG, "Photo capture failed: ${exception.message}", exception)
+            }
+        })
+        /*imageCapture.takePicture(
             outputOptions,
             ContextCompat.getMainExecutor(this),
             object : ImageCapture.OnImageSavedCallback {
@@ -134,77 +128,8 @@ class MainActivity : AppCompatActivity() {
                     Log.d(TAG, msg)
                 }
             }
-        )
+        )*/
     }
-
-    class TextReaderAnalyzer(private val textFoundListener : (String)-> Unit) : ImageAnalysis.Analyzer
-    {
-        @ExperimentalGetImage
-        override fun analyze(image: ImageProxy) {
-            image.image?.let {process(it,image)}
-        }
-
-        private fun process(it: Image, image: ImageProxy) {
-            try {
-                readTextFromImage(InputImage.fromMediaImage(it,90),image)
-            }
-            catch (e : IOException)
-            {
-                Log.d(TAG,"Failed to load the image")
-                e.printStackTrace()
-            }
-        }
-
-        private fun readTextFromImage(image1: InputImage, image: ImageProxy) {
-            TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-                .process(image1)
-                .addOnSuccessListener { visionText ->
-                    processTextFromImagr(visionText,image)
-                    image.close()
-                }
-                .addOnFailureListener { error ->
-                    Log.d(TAG,"Failed to process the image")
-                    error.printStackTrace()
-                    image.close()
-                }
-
-        }
-
-        private fun processTextFromImagr(visionText: Text, image: ImageProxy) {
-            
-                for (block in visionText.textBlocks) {
-                    // You can access whole block of text using block.text
-                    for (line in block.lines) {
-                        // You can access whole line of text using line.text
-                        for (element in line.elements) {
-                            textFoundListener(element.text)
-                        }
-                    }
-                }
-
-        }
-
-    }
-    private val imageAnalyzer by lazy {
-        ImageAnalysis.Builder()
-            .setTargetAspectRatio(AspectRatio.RATIO_16_9)
-            .build()
-            .also {
-                it.setAnalyzer(
-                    cameraExecutor,
-                    TextReaderAnalyzer(::onTextFound)
-                )
-            }
-    }
-    private  fun onTextFound(foundText :String)
-    {
-        Log.d(TAG,"We found some Text : $foundText")
-    }
-
-
-
-
-
 
 
 
@@ -221,19 +146,72 @@ class MainActivity : AppCompatActivity() {
                 .also {
                     it.setSurfaceProvider(viewBinding.viewFinder.surfaceProvider)
                 }
-            cameraProvider.bind(preview,imageAnalyzer)
+
+            // Select back camera as a default
+            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+            imageCapture = ImageCapture.Builder().build()
+
+
+
+
+            try {
+                // Unbind use cases before rebinding
+                cameraProvider.unbindAll()
+
+                // Bind use cases to camera
+                cameraProvider.bindToLifecycle(
+                    this, cameraSelector, preview, imageCapture)
+
+            } catch(exc: Exception) {
+                Log.e(TAG, "Use case binding failed", exc)
+            }
+
         }, ContextCompat.getMainExecutor(this))
+
     }
-    private fun ProcessCameraProvider.bind (preview: Preview,imageAnalzer:ImageAnalysis)=
-        try{
-            unbindAll()
-            bindToLifecycle(this@MainActivity,
-            CameraSelector.DEFAULT_BACK_CAMERA,preview,imageAnalzer)
+
+
+    class TextReaderAnalyzer(
+        private val textFoundListener: (String) -> Unit
+    ) : ImageAnalysis.Analyzer {
+
+        @ExperimentalGetImage
+        override fun analyze(imageProxy: ImageProxy) {
+            // We will do some interesting things here in just a bit
+            val mediaImage = imageProxy.image
+            if (mediaImage !=null)
+            {
+                val image=InputImage.fromMediaImage(mediaImage,imageProxy.imageInfo.rotationDegrees)
+                 val result= TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS).
+                 process(image)
+                     .addOnSuccessListener {
+                             visionText ->
+                         processTextFromImage(visionText, imageProxy)
+                         imageProxy.close()
+                     }
+                     .addOnFailureListener{
+                         Log.d(TAG, "Failed to process the image")
+                         it.printStackTrace()
+                         imageProxy.close()
+                     }
+            }
         }
-        catch (ise : IllegalStateException)
-        {
-            Log.e(TAG,"Binding failed",ise)
+
+
+
+        private fun processTextFromImage(visionText: Text?, imageProxy: ImageProxy) {
+            for (block in visionText!!.textBlocks) {
+                // You can access whole block of text using block.text
+                for (line in block.lines) {
+                    // You can access whole line of text using line.text
+                    for (element in line.elements) {
+                        textFoundListener(element.text)
+                    }
+                }
+            }
         }
+    }
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(
@@ -244,8 +222,6 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         cameraExecutor.shutdown()
     }
-
-
 
     companion object {
         private const val TAG = "CameraXApp"
