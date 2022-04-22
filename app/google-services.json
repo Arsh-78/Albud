@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "377291636943",
+    "project_id": "albud-c4a1d",
+    "storage_bucket": "albud-c4a1d.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:377291636943:android:91c7e4381c323fbf12f7ba",
+        "android_client_info": {
+          "package_name": "com.example.albud"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "377291636943-c8cc5de1anj19hnj293485js48egdbil.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDDhXv8yGTY2jJFgbtC9QVcQ1dyG_hywlw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "377291636943-c8cc5de1anj19hnj293485js48egdbil.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
