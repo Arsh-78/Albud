@@ -10,12 +10,12 @@
 
     <ImageView
         android:layout_width="wrap_content"
-        android:layout_height="350dp"
+        android:layout_height="250dp"
         android:layout_gravity="center"
         android:id="@+id/imageID"/>
     <TextView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="200dp"
         android:textSize="20dp"
         android:id="@+id/textId"></TextView>
 
@@ -28,7 +28,7 @@
         android:text="Start Camera"
 
         android:translationX="50dp"
-        android:translationY="170dp" />
+        android:translationY="120dp" />
 
     <Button
         android:id="@+id/testb"
@@ -40,7 +40,7 @@
         android:text="test"
         android:textSize="20dp"
         android:translationX="50dp"
-        android:translationY="180dp" />
+        android:translationY="130dp" />
 
 
 </LinearLayout>
